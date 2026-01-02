@@ -1,1 +1,1 @@
-# ethicAI_audit
+# ethicai_audit
