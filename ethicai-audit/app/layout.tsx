@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="bg-white text-gray-900">
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-white text-gray-900" suppressHydrationWarning>
         <header className="border-b border-gray-200">
           <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
             <a href="/" className="font-semibold text-lg">
