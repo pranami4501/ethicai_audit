@@ -12,8 +12,6 @@ import {
 import { demoRaceData, demoSexData } from "@/lib/demoData";
 import GroupBarChart from "../../components/GroupBarChart";
 
-console.log("AUDIT PAGE LOADED - CLIENT");
-
 function formatPct(x: number) {
   return `${(x * 100).toFixed(1)}%`;
 }
@@ -56,27 +54,15 @@ export default function AuditPage() {
   const [acc, setAcc] = useState<number | null>(null);
 
   const runDemo = (which: "sex" | "race") => {
-    console.log("runDemo clicked:", which);
+  const rows = which === "sex" ? demoSexData : demoRaceData;
+  const gm = computeGroupMetrics(rows);
 
-    try {
-      const rows = which === "sex" ? demoSexData : demoRaceData;
-      console.log("rows length:", rows.length, "first row:", rows[0]);
-
-      const gm = computeGroupMetrics(rows);
-      console.log("group metrics:", gm);
-
-      setGroupResults(gm);
-      setDpd(demographicParityDifference(gm));
-      setEod(equalOpportunityDifference(gm));
-      setAcc(accuracy(rows));
-      setMode(which);
-
-      console.log("state set successfully");
-    } catch (err) {
-      console.error("runDemo failed:", err);
-      alert("runDemo failed — open Console to see error");
-    }
-  };
+  setGroupResults(gm);
+  setDpd(demographicParityDifference(gm));
+  setEod(equalOpportunityDifference(gm));
+  setAcc(accuracy(rows));
+  setMode(which);
+};
 
   const title = useMemo(() => {
     if (mode === "sex") return "Demo Audit — Sex";
@@ -150,7 +136,9 @@ export default function AuditPage() {
             <p className="mt-2 text-gray-600">
               CSV upload + column selection will be added next.
             </p>
-            <input className="mt-4 block w-full" type="file" accept=".csv" disabled />
+            <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+              Upload mode is coming next. For now, use Demo Mode to explore how fairness metrics behave.
+            </div>
           </div>
         </div>
 
