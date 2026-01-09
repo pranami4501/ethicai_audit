@@ -1,5 +1,6 @@
 "use client";
 
+import { buildHtmlReport } from "@/lib/report";
 import { useMemo, useState } from "react";
 import {
   accuracy,
@@ -83,6 +84,35 @@ export default function AuditPage() {
     return "Fairness Audit";
   }, [mode]);
   const risk = dpd !== null && eod !== null ? riskFromGaps(dpd, eod) : null;
+
+  const downloadReport = () => {
+  if (dpd === null || eod === null || acc === null || groupResults.length === 0) return;
+
+  const risk = riskFromGaps(dpd, eod);
+
+  const html = buildHtmlReport({
+    title,
+    accuracy: acc,
+    dpd,
+    eod,
+    riskLevel: risk.level,
+    riskMessage: risk.message,
+    groupMetrics: groupResults,
+  });
+
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ethicai-fairness-report-${mode}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+};
+
 
   return (
     <main className="min-h-screen bg-white">
@@ -176,6 +206,17 @@ export default function AuditPage() {
             <p className="mt-4 text-xs text-gray-500">
               Note: These thresholds are educational defaults. Real deployments should use domain requirements and stakeholder policy.
             </p>
+          </div>
+        )}
+
+        {groupResults.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={downloadReport}
+              className="rounded-xl border border-gray-300 px-4 py-2 hover:bg-gray-50"
+            >
+              Download Fairness Report (HTML)
+            </button>
           </div>
         )}
 
