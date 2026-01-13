@@ -1,5 +1,6 @@
 "use client";
 
+import { mergeOnId } from "@/lib/csvBuilder";
 import Papa from "papaparse";
 import { buildHtmlReport } from "@/lib/report";
 import { useMemo, useState } from "react";
@@ -80,6 +81,25 @@ export default function AuditPage() {
   const [eod, setEod] = useState<number | null>(null);
   const [acc, setAcc] = useState<number | null>(null);
 
+  const [wizardMode, setWizardMode] = useState<boolean>(true);
+
+  // Main dataset
+  const [mainRows, setMainRows] = useState<Record<string, any>[]>([]);
+  const [mainCols, setMainCols] = useState<string[]>([]);
+  const [mainError, setMainError] = useState<string | null>(null);
+
+  // Predictions dataset
+  const [predRows, setPredRows] = useState<Record<string, any>[]>([]);
+  const [predCols, setPredCols] = useState<string[]>([]);
+  const [predError, setPredError] = useState<string | null>(null);
+
+  const [idMain, setIdMain] = useState<string>("");
+  const [idPred, setIdPred] = useState<string>("");
+
+  const [mergedRows, setMergedRows] = useState<Record<string, any>[]>([]);
+  const [mergeStats, setMergeStats] = useState<any | null>(null);
+
+
   const [rawRows, setRawRows] = useState<Record<string, any>[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -119,6 +139,32 @@ export default function AuditPage() {
     return "Fairness Audit";
   }, [mode]);
   const risk = dpd !== null && eod !== null ? riskFromGaps(dpd, eod) : null;
+
+  const downloadSampleCsv = () => {
+    const sample = `y_true,y_pred,group
+  1,1,Female
+  1,0,Female
+  0,1,Male
+  0,0,Male
+  1,1,Male
+  0,0,Female
+  1,0,Female
+  0,1,Male
+  `;
+
+    const blob = new Blob([sample], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ethicai-sample.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  };
+
 
   const downloadReport = () => {
   if (dpd === null || eod === null || acc === null || groupResults.length === 0) return;
@@ -253,6 +299,87 @@ export default function AuditPage() {
     setParseError(null);
   };
 
+  const parseCsvFile = (file: File, onDone: (rows: Record<string, any>[], cols: string[]) => void, onErr: (msg: string) => void) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = (results.data as Record<string, any>[]) || [];
+        if (!rows.length) {
+          onErr("CSV parsed but contained no rows.");
+          return;
+        }
+        const cols = Object.keys(rows[0] || {}).filter(Boolean);
+        onDone(rows, cols);
+      },
+      error: (err) => onErr(err.message),
+    });
+  };
+
+  const doMerge = () => {
+    if (!mainRows.length) {
+      setMainError("Please upload a Main Dataset CSV first.");
+      return;
+    }
+    if (!predRows.length) {
+      setPredError("Please upload a Predictions CSV first.");
+      return;
+    }
+    if (!idMain || !idPred) {
+      setMainError("Select ID columns for both files.");
+      return;
+    }
+
+    const res = mergeOnId({
+      leftRows: mainRows,
+      rightRows: predRows,
+      leftId: idMain,
+      rightId: idPred,
+    });
+
+    setMergedRows(res.merged);
+    setMergeStats(res.stats);
+
+    // After merge, reuse your existing upload audit pipeline:
+    setRawRows(res.merged);
+
+    // Create combined columns list for dropdowns
+    const cols = Object.keys(res.merged[0] || {}).filter(Boolean);
+    setColumns(cols);
+
+    setParseError(null);
+  };
+
+  const handleMainFile = (file: File) => {
+    setMainError(null);
+    parseCsvFile(
+      file,
+      (rows, cols) => {
+        setMainRows(rows);
+        setMainCols(cols);
+        // helpful guess for id
+        const guess = cols.find((c) => ["id", "user_id", "case_id"].includes(c.toLowerCase().trim()));
+        if (guess) setIdMain(guess);
+      },
+      (msg) => setMainError(msg)
+    );
+  };
+
+  const handlePredFile = (file: File) => {
+    setPredError(null);
+    parseCsvFile(
+      file,
+      (rows, cols) => {
+        setPredRows(rows);
+        setPredCols(cols);
+        const guess = cols.find((c) => ["id", "user_id", "case_id"].includes(c.toLowerCase().trim()));
+        if (guess) setIdPred(guess);
+      },
+      (msg) => setPredError(msg)
+    );
+  };
+
+
   return (
     <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-5xl px-6 py-16">
@@ -260,6 +387,71 @@ export default function AuditPage() {
         <p className="mt-3 text-gray-700">
           Start with a demo audit (instant) or upload your own CSV (coming next).
         </p>
+
+        <details className="mt-6 rounded-2xl border border-gray-200 p-4 bg-gray-50">
+          <summary className="cursor-pointer text-sm font-medium text-gray-800">
+            How does this tool work? (for non-technical users)
+          </summary>
+
+          <div className="mt-4 space-y-4 text-sm text-gray-700">
+            <p>
+              This tool helps you check whether a classification model treats different groups
+              (such as gender or race) differently in its predictions.
+            </p>
+
+            <div>
+              <p className="font-medium">What data do I need?</p>
+              <ul className="mt-1 list-disc pl-5 space-y-1">
+                <li>
+                  <b>y_true</b>: the real outcome that actually happened (for example:
+                  did someone repay a loan, was income above 50K, etc.).
+                </li>
+                <li>
+                  <b>y_pred</b> or <b>score</b>: what the model predicted.
+                  <ul className="ml-4 mt-1 list-disc">
+                    <li><b>y_pred</b> = predicted class (0 or 1)</li>
+                    <li><b>score</b> = probability (between 0 and 1)</li>
+                  </ul>
+                </li>
+                <li>
+                  <b>group</b>: the group you want to audit fairness for
+                  (for example: Male/Female, race categories, age groups).
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium">Where does this data usually come from?</p>
+              <ul className="mt-1 list-disc pl-5 space-y-1">
+                <li>
+                  <b>y_true</b> comes from historical outcomes in your dataset.
+                </li>
+                <li>
+                  <b>y_pred / score</b> comes from running your model and exporting its predictions.
+                </li>
+                <li>
+                  <b>group</b> comes from demographic or categorical fields you already track.
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium">What if I don’t have a model?</p>
+              <p className="mt-1">
+                You can use the <b>Demo Mode</b> to see how fairness metrics behave,
+                or upload example data using the provided sample CSV template.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-3 border border-gray-200">
+              <p className="text-xs text-gray-600">
+                🔒 <b>Privacy note:</b> All files are processed locally in your browser.
+                No data is uploaded to any server.
+              </p>
+            </div>
+          </div>
+        </details>
+
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -285,20 +477,155 @@ export default function AuditPage() {
           </div>
 
           <div className="rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Upload CSV</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Upload</h2>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={wizardMode}
+                  onChange={(e) => setWizardMode(e.target.checked)}
+                />
+                Guided mode
+              </label>
+            </div>
+
             <p className="mt-2 text-gray-600">
-              Upload a CSV and select the label, prediction, and group columns to audit fairness.
+              {wizardMode
+                ? "Upload a main dataset + a predictions file, then merge by an ID column."
+                : "Upload a CSV and select the label, prediction, and group columns to audit fairness."}
             </p>
 
-            <input
-              className="mt-4 block w-full"
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFile(f);
-              }}
-            />
+            {/* ---------------- Guided Mode (P1.7) ---------------- */}
+            {wizardMode && (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-sm text-gray-700 font-medium">Step 1 — Main Dataset CSV</p>
+                  <p className="text-xs text-gray-500">
+                    Contains demographics (group) and real outcomes (y_true). Example: a historical dataset.
+                  </p>
+
+                  <input
+                    className="mt-2 block w-full"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleMainFile(f);
+                    }}
+                  />
+
+                  {mainError && <p className="mt-2 text-sm text-red-700">{mainError}</p>}
+
+                  {mainCols.length > 0 && (
+                    <div className="mt-2">
+                      <label className="text-sm text-gray-600">Main ID column</label>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                        value={idMain}
+                        onChange={(e) => setIdMain(e.target.value)}
+                      >
+                        <option value="">Select…</option>
+                        {mainCols.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-700 font-medium">Step 2 — Predictions CSV</p>
+                  <p className="text-xs text-gray-500">
+                    Contains model outputs (y_pred or score) and an ID column to match rows.
+                  </p>
+
+                  <input
+                    className="mt-2 block w-full"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handlePredFile(f);
+                    }}
+                  />
+
+                  {predError && <p className="mt-2 text-sm text-red-700">{predError}</p>}
+
+                  {predCols.length > 0 && (
+                    <div className="mt-2">
+                      <label className="text-sm text-gray-600">Predictions ID column</label>
+                      <select
+                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                        value={idPred}
+                        onChange={(e) => setIdPred(e.target.value)}
+                      >
+                        <option value="">Select…</option>
+                        {predCols.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={doMerge} className="rounded-xl bg-black px-4 py-2 text-white">
+                  Merge files and continue
+                </button>
+
+                {mergeStats && (
+                  <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
+                    <p className="font-medium">Merge summary</p>
+                    <ul className="mt-2 space-y-1">
+                      <li>Main rows: {mergeStats.leftRows}</li>
+                      <li>Prediction rows: {mergeStats.rightRows}</li>
+                      <li>Matched rows: {mergeStats.matched}</li>
+                      <li>Main-only rows: {mergeStats.leftOnly}</li>
+                      <li>Prediction-only rows: {mergeStats.rightOnly}</li>
+                    </ul>
+                  </div>
+                )}
+
+                {columns.length > 0 && (
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <p className="text-sm font-medium text-gray-700">Step 3 — Select audit columns</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Choose which columns represent the ground truth outcome, model prediction, and group.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ---------------- Simple Mode (your existing upload UI) ---------------- */}
+            {!wizardMode && (
+              <div className="mt-4">
+                <input
+                  className="block w-full"
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFile(f);
+                  }}
+                />
+
+                <div className="mt-3">
+                  <button
+                    onClick={downloadSampleCsv}
+                    className="rounded-xl border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                  >
+                    Download Sample CSV
+                  </button>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Tip: Use this template to format your data (y_true, y_pred/score, group).
+                  </p>
+                </div>
+              </div>
+            )}
 
             {parseError && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -306,6 +633,7 @@ export default function AuditPage() {
               </div>
             )}
 
+            {/* Shared: column selection + audit button (works for both modes) */}
             {columns.length > 0 && (
               <div className="mt-4 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -318,7 +646,9 @@ export default function AuditPage() {
                     >
                       <option value="">Select…</option>
                       {columns.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -332,7 +662,9 @@ export default function AuditPage() {
                     >
                       <option value="">Select…</option>
                       {columns.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -346,7 +678,9 @@ export default function AuditPage() {
                     >
                       <option value="">Select…</option>
                       {columns.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -386,12 +720,11 @@ export default function AuditPage() {
                   onClick={() => runAuditFromRows(rawRows)}
                   className="rounded-xl bg-black px-4 py-2 text-white"
                 >
-                  Run Audit on Uploaded Data
+                  Run Audit
                 </button>
               </div>
             )}
           </div>
-
         </div>
 
         {dpd !== null && eod !== null && acc !== null && (
