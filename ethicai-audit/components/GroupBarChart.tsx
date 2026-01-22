@@ -32,7 +32,13 @@ export default function GroupBarChart({ title, data, valueLabel = "Value" }: Pro
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="group" />
             <YAxis tickFormatter={formatPct} />
-            <Tooltip formatter={(v: number) => formatPct(v as number)} />
+            <Tooltip
+              formatter={(value) => {
+                if (typeof value !== "number") return "";
+                return formatPct(value);
+              }}
+            />
+
             <Bar dataKey="value" />
           </BarChart>
         </ResponsiveContainer>
