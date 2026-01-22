@@ -385,7 +385,7 @@ export default function AuditPage() {
       <div className="mx-auto max-w-5xl px-6 py-16">
         <h1 className="text-3xl font-bold">{title}</h1>
         <p className="mt-3 text-gray-700">
-          Start with a demo audit (instant) or upload your own CSV (coming next).
+          Explore an example audit (demo) or audit your own model outputs using a CSV workflow.
         </p>
 
         <details className="mt-6 rounded-2xl border border-gray-200 p-4 bg-gray-50">
@@ -455,7 +455,13 @@ export default function AuditPage() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Demo Mode</h2>
+            <div className="flex items-start justify-between gap-4">
+              <h2 className="text-lg font-semibold">Example Model (Demo)</h2>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                Demo
+              </span>
+            </div>
+
             <p className="mt-2 text-gray-600">
               Run a demo audit on built-in sample data.
             </p>
@@ -477,8 +483,16 @@ export default function AuditPage() {
           </div>
 
           <div className="rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Upload</h2>
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold">Audit Your Model</h2>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                    Upload
+                  </span>
+                </div>
+              </div>
+
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
