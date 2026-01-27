@@ -3,7 +3,7 @@
 import { mergeOnId } from "@/lib/csvBuilder";
 import Papa from "papaparse";
 import { buildHtmlReport } from "@/lib/report";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect} from "react";
 import {
   accuracy,
   computeGroupMetrics,
@@ -80,8 +80,12 @@ export default function AuditPage() {
   const [dpd, setDpd] = useState<number | null>(null);
   const [eod, setEod] = useState<number | null>(null);
   const [acc, setAcc] = useState<number | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const [wizardMode, setWizardMode] = useState<boolean>(true);
+
+  const [datasetName, setDatasetName] = useState<string>("");
+  const [modelName, setModelName] = useState<string>("");
 
   // Main dataset
   const [mainRows, setMainRows] = useState<Record<string, any>[]>([]);
@@ -133,6 +137,15 @@ export default function AuditPage() {
   setDq(null);
 };
 
+useEffect(() => {
+  const ready = groupResults.length > 0 && dpd !== null && eod !== null && acc !== null;
+  if (ready && resultsRef.current) {
+    resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}, [groupResults, dpd, eod, acc]);
+
+
+
   const title = useMemo(() => {
     if (mode === "sex") return "Demo Audit — Sex";
     if (mode === "race") return "Demo Audit — Race";
@@ -179,7 +192,12 @@ export default function AuditPage() {
     riskLevel: risk.level,
     riskMessage: risk.message,
     groupMetrics: groupResults,
+    datasetName,
+    modelName,
+    threshold: predIsScore ? threshold : null,
+    generatedAt: new Date().toISOString(),
   });
+
 
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
@@ -444,7 +462,7 @@ export default function AuditPage() {
             </div>
 
             <div className="rounded-xl bg-white p-3 border border-gray-200">
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-700">
                 🔒 <b>Privacy note:</b> All files are processed locally in your browser.
                 No data is uploaded to any server.
               </p>
@@ -462,7 +480,7 @@ export default function AuditPage() {
               </span>
             </div>
 
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-gray-700">
               Run a demo audit on built-in sample data.
             </p>
 
@@ -475,19 +493,19 @@ export default function AuditPage() {
               </button>
               <button
                 onClick={() => runDemo("race")}
-                className="rounded-xl border border-gray-300 px-4 py-2"
+                className="rounded-xl border border-gray-700 px-4 py-2"
               >
                 Run Demo (Race)
               </button>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <div className="rounded-2xl border border-gray-300 p-6 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-semibold">Audit Your Model</h2>
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                  <span className="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700">
                     Upload
                   </span>
                 </div>
@@ -503,7 +521,7 @@ export default function AuditPage() {
               </label>
             </div>
 
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-gray-700">
               {wizardMode
                 ? "Upload a main dataset + a predictions file, then merge by an ID column."
                 : "Upload a CSV and select the label, prediction, and group columns to audit fairness."}
@@ -514,7 +532,7 @@ export default function AuditPage() {
               <div className="mt-4 space-y-4">
                 <div>
                   <p className="text-sm text-gray-700 font-medium">Step 1 — Main Dataset CSV</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-700">
                     Contains demographics (group) and real outcomes (y_true). Example: a historical dataset.
                   </p>
 
@@ -532,7 +550,7 @@ export default function AuditPage() {
 
                   {mainCols.length > 0 && (
                     <div className="mt-2">
-                      <label className="text-sm text-gray-600">Main ID column</label>
+                      <label className="text-sm text-gray-700">Main ID column</label>
                       <select
                         className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
                         value={idMain}
@@ -551,7 +569,7 @@ export default function AuditPage() {
 
                 <div>
                   <p className="text-sm text-gray-700 font-medium">Step 2 — Predictions CSV</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-700">
                     Contains model outputs (y_pred or score) and an ID column to match rows.
                   </p>
 
@@ -569,7 +587,7 @@ export default function AuditPage() {
 
                   {predCols.length > 0 && (
                     <div className="mt-2">
-                      <label className="text-sm text-gray-600">Predictions ID column</label>
+                      <label className="text-sm text-gray-700">Predictions ID column</label>
                       <select
                         className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
                         value={idPred}
@@ -606,7 +624,7 @@ export default function AuditPage() {
                 {columns.length > 0 && (
                   <div className="rounded-xl border border-gray-200 p-4">
                     <p className="text-sm font-medium text-gray-700">Step 3 — Select audit columns</p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-700">
                       Choose which columns represent the ground truth outcome, model prediction, and group.
                     </p>
                   </div>
@@ -634,7 +652,7 @@ export default function AuditPage() {
                   >
                     Download Sample CSV
                   </button>
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-gray-700">
                     Tip: Use this template to format your data (y_true, y_pred/score, group).
                   </p>
                 </div>
@@ -652,7 +670,7 @@ export default function AuditPage() {
               <div className="mt-4 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="text-sm">
-                    <div className="mb-1 text-gray-600">y_true column</div>
+                    <div className="mb-1 text-gray-700">y_true column</div>
                     <select
                       className="w-full rounded-xl border border-gray-300 px-3 py-2"
                       value={colTrue}
@@ -668,7 +686,7 @@ export default function AuditPage() {
                   </label>
 
                   <label className="text-sm">
-                    <div className="mb-1 text-gray-600">y_pred / score column</div>
+                    <div className="mb-1 text-gray-700">y_pred / score column</div>
                     <select
                       className="w-full rounded-xl border border-gray-300 px-3 py-2"
                       value={colPred}
@@ -684,7 +702,7 @@ export default function AuditPage() {
                   </label>
 
                   <label className="text-sm">
-                    <div className="mb-1 text-gray-600">group column</div>
+                    <div className="mb-1 text-gray-700">group column</div>
                     <select
                       className="w-full rounded-xl border border-gray-300 px-3 py-2"
                       value={colGroup}
@@ -730,6 +748,34 @@ export default function AuditPage() {
                   </div>
                 )}
 
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm text-gray-700">
+                      Dataset name (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={datasetName}
+                      onChange={(e) => setDatasetName(e.target.value)}
+                      placeholder="e.g., Adult Income (UCI)"
+                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-700">
+                      Model name / version (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      placeholder="e.g., Logistic Regression v1"
+                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
                 <button
                   onClick={() => runAuditFromRows(rawRows)}
                   className="rounded-xl bg-black px-4 py-2 text-white"
@@ -742,17 +788,17 @@ export default function AuditPage() {
         </div>
 
         {dpd !== null && eod !== null && acc !== null && (
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div ref={resultsRef} className="mt-10 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl bg-gray-50 p-6">
-              <p className="text-sm text-gray-500">Accuracy (demo)</p>
+              <p className="text-sm text-gray-700">Accuracy (demo)</p>
               <p className="mt-2 text-2xl font-semibold">{formatPct(acc)}</p>
             </div>
             <div className="rounded-2xl bg-gray-50 p-6">
-              <p className="text-sm text-gray-500">Demographic Parity Diff (DPD)</p>
+              <p className="text-sm text-gray-700">Demographic Parity Diff (DPD)</p>
               <p className="mt-2 text-2xl font-semibold">{formatPct(dpd)}</p>
             </div>
             <div className="rounded-2xl bg-gray-50 p-6">
-              <p className="text-sm text-gray-500">Equal Opportunity Diff (EOD)</p>
+              <p className="text-sm text-gray-700">Equal Opportunity Diff (EOD)</p>
               <p className="mt-2 text-2xl font-semibold">{formatPct(eod)}</p>
             </div>
           </div>
@@ -763,7 +809,7 @@ export default function AuditPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Fairness Risk Rating</h3>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-700">
                   Based on the larger of Demographic Parity Difference (DPD) and Equal Opportunity Difference (EOD).
                 </p>
               </div>
@@ -777,20 +823,20 @@ export default function AuditPage() {
 
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">DPD</p>
+                <p className="text-xs text-gray-700">DPD</p>
                 <p className="mt-1 text-lg font-semibold">{formatPct(dpd!)}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">EOD</p>
+                <p className="text-xs text-gray-700">EOD</p>
                 <p className="mt-1 text-lg font-semibold">{formatPct(eod!)}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Decision</p>
+                <p className="text-xs text-gray-700">Decision</p>
                 <p className="mt-1 text-sm text-gray-700">{risk.message}</p>
               </div>
             </div>
 
-            <p className="mt-4 text-xs text-gray-500">
+            <p className="mt-4 text-xs text-gray-700">
               Note: These thresholds are educational defaults. Real deployments should use domain requirements and stakeholder policy.
             </p>
           </div>
@@ -801,7 +847,7 @@ export default function AuditPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold">Data Quality Summary</h3>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-700">
                   Shows how many rows were usable after validation. Processing happens locally in your browser.
                 </p>
               </div>
@@ -812,15 +858,15 @@ export default function AuditPage() {
 
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Rows uploaded</p>
+                <p className="text-xs text-gray-700">Rows uploaded</p>
                 <p className="mt-1 text-xl font-semibold">{dq.uploaded}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Rows used</p>
+                <p className="text-xs text-gray-700">Rows used</p>
                 <p className="mt-1 text-xl font-semibold">{dq.used}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">Rows dropped</p>
+                <p className="text-xs text-gray-700">Rows dropped</p>
                 <p className="mt-1 text-xl font-semibold">{dq.dropped}</p>
               </div>
             </div>
@@ -875,7 +921,7 @@ export default function AuditPage() {
             <h3 className="text-lg font-semibold">Metrics by Group</h3>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-gray-600">
+                <thead className="text-left text-gray-700">
                   <tr>
                     <th className="py-2">Group</th>
                     <th className="py-2">Count</th>
@@ -900,7 +946,7 @@ export default function AuditPage() {
               </table>
             </div>
 
-            <p className="mt-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm text-gray-700">
               Note: demo data is small and illustrative. Upload mode will support real datasets.
             </p>
           </div>
