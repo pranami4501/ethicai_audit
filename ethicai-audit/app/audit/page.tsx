@@ -536,15 +536,31 @@ useEffect(() => {
                     Contains demographics (group) and real outcomes (y_true). Example: a historical dataset.
                   </p>
 
-                  <input
-                    className="mt-2 block w-full"
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleMainFile(f);
-                    }}
-                  />
+                  <div className="mt-2">
+                    <label
+                      htmlFor="main-dataset-upload"
+                      className="inline-flex cursor-pointer items-center rounded-xl bg-black px-4 py-2 text-sm text-white hover:bg-gray-900"
+                    >
+                      Choose main dataset CSV
+                    </label>
+
+                    <input
+                      id="main-dataset-upload"
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleMainFile(f);
+                      }}
+                    />
+
+                    {mainRows.length > 0 && (
+                      <p className="mt-2 text-sm text-gray-700">
+                        Selected file loaded ({mainRows.length} rows)
+                      </p>
+                    )}
+                  </div>
 
                   {mainError && <p className="mt-2 text-sm text-red-700">{mainError}</p>}
 
@@ -573,15 +589,32 @@ useEffect(() => {
                     Contains model outputs (y_pred or score) and an ID column to match rows.
                   </p>
 
-                  <input
-                    className="mt-2 block w-full"
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handlePredFile(f);
-                    }}
-                  />
+                  <div className="mt-2">
+                    <label
+                      htmlFor="predictions-upload"
+                      className="inline-flex cursor-pointer items-center rounded-xl bg-black px-4 py-2 text-sm text-white hover:bg-gray-900"
+                    >
+                      Choose predictions CSV
+                    </label>
+
+                    <input
+                      id="predictions-upload"
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handlePredFile(f);
+                      }}
+                    />
+
+                    {predRows.length > 0 && (
+                      <p className="mt-2 text-sm text-gray-700">
+                        Selected file loaded ({predRows.length} rows)
+                      </p>
+                    )}
+                  </div>
+
 
                   {predError && <p className="mt-2 text-sm text-red-700">{predError}</p>}
 
@@ -635,28 +668,44 @@ useEffect(() => {
             {/* ---------------- Simple Mode (your existing upload UI) ---------------- */}
             {!wizardMode && (
               <div className="mt-4">
+              <div>
+                <label
+                  htmlFor="simple-upload"
+                  className="inline-flex cursor-pointer items-center rounded-xl bg-black px-4 py-2 text-sm text-white hover:bg-gray-900"
+                >
+                  Choose CSV to audit
+                </label>
+
                 <input
-                  className="block w-full"
+                  id="simple-upload"
                   type="file"
                   accept=".csv"
+                  className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) handleFile(f);
                   }}
                 />
 
-                <div className="mt-3">
-                  <button
-                    onClick={downloadSampleCsv}
-                    className="rounded-xl border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-                  >
-                    Download Sample CSV
-                  </button>
-                  <p className="mt-2 text-xs text-gray-700">
-                    Tip: Use this template to format your data (y_true, y_pred/score, group).
+                {rawRows.length > 0 && (
+                  <p className="mt-2 text-sm text-gray-700">
+                    File loaded ({rawRows.length} rows). Now select columns below.
                   </p>
-                </div>
+                )}
               </div>
+
+              <div className="mt-3">
+                <button
+                  onClick={downloadSampleCsv}
+                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                >
+                  Download Sample CSV
+                </button>
+                <p className="mt-2 text-xs text-gray-600">
+                  Tip: Use this template to format your data (y_true, y_pred/score, group).
+                </p>
+              </div>
+            </div>
             )}
 
             {parseError && (
