@@ -474,7 +474,7 @@ useEffect(() => {
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
-              <h2 className="text-lg font-semibold">Example Model (Demo)</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Example Model (Demo)</h2>
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
                 Demo
               </span>
@@ -493,7 +493,7 @@ useEffect(() => {
               </button>
               <button
                 onClick={() => runDemo("race")}
-                className="rounded-xl border border-gray-700 px-4 py-2"
+                className="rounded-xl border border-gray-800 px-4 py-2 text-gray-900 sm:border-gray-300 sm:text-gray-700"
               >
                 Run Demo (Race)
               </button>
@@ -504,7 +504,7 @@ useEffect(() => {
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold">Audit Your Model</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Audit Your Model</h2>
                   <span className="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700">
                     Upload
                   </span>
